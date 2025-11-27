@@ -37,12 +37,16 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
-        const ADMIN_PIN = "8888";
-
+        
+        // ==========================================================
+        // ADMIN SETTINGS
+        // ==========================================================
+        const ADMIN_PIN = "8888"; 
         const CLIENT_CONFIG = {
             COMPANY_NAME: "", 
             SCRIPT_URL: "" 
         };
+        // ==========================================================
 
         const Icons = {
             Logo: (p) => <svg {...p} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M12 8v8" /><path d="M8 12h8" /></svg>,
@@ -251,13 +255,11 @@
                 if(syncedCount > 0) setModal({ type: 'success', title: 'Sync Complete', message: `${syncedCount} offline transactions uploaded.` });
             };
 
-            // Delete Confirmation Handler
             const handleDeleteClick = (id, type, status) => {
                 setPendingDelete({ id, type, status });
                 setModal({ type: 'confirm', title: 'Delete Entry?', message: 'This action cannot be undone.' });
             };
 
-            // Confirm Delete Action
             const confirmDelete = async () => {
                 if (!pendingDelete) return;
                 const { id, type, status } = pendingDelete;
@@ -266,7 +268,8 @@
                 if(status === 'synced') {
                     setLoading(true);
                     try {
-                        const payload = { action: 'delete', id: id, type: type };
+                        // IMPORTANT: Send ID as String to match Backend
+                        const payload = { action: 'delete', id: String(id), type: type };
                         await fetch(scriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
                         setHistory(prev => prev.filter(item => item.id !== id));
                         setModal({ type: 'success', title: 'Deleted', message: 'Entry removed from Sheet and App.' });
@@ -331,17 +334,22 @@
             };
 
             const handleSubmit = async () => {
+                // 1. Validation Check
+                if(!category && !description.trim()) { 
+                    setModal({ type: 'error', title: 'Action Required', message: 'Please select a CATEGORY or enter REMARKS.' }); 
+                    return; 
+                }
+                if(!counterparty.trim()) { setModal({ type: 'error', title: 'Missing Info', message: txnType === 'receipt' ? 'Enter who you RECEIVED from.' : 'Enter who you PAID to.' }); return; }
                 if (!amount || isNaN(amount)) return setModal({ type: 'error', title: 'Invalid Amount', message: 'Enter a valid number.' });
                 if (!companyName) return setModal({ type: 'error', title: 'Setup Missing', message: 'App not configured for Client.' });
                 if (!scriptUrl) return setModal({ type: 'error', title: 'Setup Missing', message: 'App not configured with Cloud URL.' });
-                if (!counterparty.trim()) { setModal({ type: 'error', title: 'Missing Info', message: txnType === 'receipt' ? 'Enter who you RECEIVED from.' : 'Enter who you PAID to.' }); return; }
 
-                // Auto-Fill Smart Defaults
+                // 2. Smart Autofill Logic (Happens AFTER validation passed)
                 let finalCategory = category;
-                if(!finalCategory) finalCategory = "Misc";
+                if(!finalCategory) finalCategory = "Misc"; // Fill Misc if empty
 
                 let finalDescription = description;
-                if(!finalDescription.trim()) finalDescription = "No Remarks";
+                if(!finalDescription.trim()) finalDescription = "No Remarks"; // Fill No Remarks if empty
 
                 setLoading(true);
                 const timestamp = new Date().toISOString();
